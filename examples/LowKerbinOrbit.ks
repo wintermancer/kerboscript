@@ -73,7 +73,7 @@ WHEN STAGE:SOLIDFUEL < 0.1 THEN {
 // OK we are clear of the Launchpad. Initialize the KERBIN_ASCENT FUNCTION
 // In this example we start turning at 3km and burn until 80km APOAPSIS.
 // We head into eastern direction ( -90 degree on the zAxis)
-KERBIN_ASCENT(3000,80000,-90).
+KERBIN_ASCENT(2000,80000,-90).
 
 DECLARE FUNCTION KERBIN_ASCENT {
   DECLARE PARAMETER turnHeight.
@@ -81,6 +81,7 @@ DECLARE FUNCTION KERBIN_ASCENT {
   DECLARE PARAMETER zValue.
   set xValue to 0.0.
   set yValue to 0.0.
+  set pitchValue to 0.1.
   // Write some cool log output and then wait until we are intended to start
   // with our roll and gravity turn maneuvers.
   PRINT "Starting gravity turn subsequence at " + turnHeight.
@@ -91,11 +92,12 @@ DECLARE FUNCTION KERBIN_ASCENT {
   // the nose by 0.1 degree every 50 meters. This should end us pointing at
   // the horizon ( yValue -90.0 ) after 45km of ascent - so at 48km in this
   // example.
-  UNTIL yValue < -90.0 {
+  UNTIL yValue < -89.0 {
+      IF SHIP:ALTITUDE > 30000 { set pitchValue to 0.5. }
       IF SHIP:ALTITUDE > turnHeight {
       lock steering to up + R(xValue, yValue, zValue).
       set turnHeight to turnHeight + 50.
-      set yValue to yValue - 0.1.
+      set yValue to yValue - pitchValue.
     }
     // Ever heard of terminal velocity - punk? Stop going to fast and wasting
     // a lot of fuel. In this example we start limiting our throttle by 1%
@@ -108,28 +110,28 @@ DECLARE FUNCTION KERBIN_ASCENT {
       IF tValue < 100 { set tValue to tValue + 0.01. }
       WAIT 0.2.
       }
+    }
     // Phew - seem like we are on track to the stars. Let us make sure we do
     // not overshoot and throttle to 0% as soon as we reach our desired
     // altitude for APOAPSIS
-    IF ALT:APOAPSIS > apoapsisHeight {
-        set tValue to 0.
-        RCS on.
-        PRINT "Ending ascent control at " + ALT:radar.
-        // Coasting to edge of the athmosphere. Now we correct the height we
-        // lost due to athmospheric drag. 10% throttle should be enough.
-        WAIT UNTIL SHIP:ALTITUDE > 70000.
-        IF ALT:APOAPSIS < apoapsisHeight {
-          set tValue to 0.1.
-        }
-        WAIT:UNTIL ALT:APOAPSIS > apoapsisHeight {
-          set tValue to 0.
-        }
-        // We should be done and gliding to our APOAPSIS. Let us handover to
-        // the next function.
-        PRINT "Handing over to Orbit subroutine".
-        ORBIT_ME(apoapsisHeight).
-      }
-  }
+    WAIT UNTIL ALT:APOAPSIS > apoapsisHeight.
+    set tValue to 0.
+    RCS on.
+    PRINT "Ending ascent control at " + ALT:radar.
+    // Coasting to edge of the athmosphere. Now we correct the height we
+    // lost due to athmospheric drag. 10% throttle should be enough.
+    WAIT UNTIL SHIP:ALTITUDE > 70000.
+    IF ALT:APOAPSIS < apoapsisHeight {
+    set tValue to 0.1.
+    stage.
+    AG1 on.
+    }
+    WAIT UNTIL ALT:APOAPSIS > apoapsisHeight.
+    set tValue to 0.
+    // We should be done and gliding to our APOAPSIS. Let us handover to
+    // the next function.
+    PRINT "Handing over to Orbit subroutine".
+    ORBIT_ME(apoapsisHeight).
 }
 
 DECLARE FUNCTION ORBIT_ME {
@@ -138,7 +140,7 @@ DECLARE FUNCTION ORBIT_ME {
   // If PERIAPSIS goes over targetHeight we are done. Not perfect - but orbit.
   WAIT UNTIL SHIP:ALTITUDE > ( ALT:APOAPSIS - 100 ).
   set tValue to 1.
-  WAIT UNTIL ALT:PERIAPSIS > targetHeight.
+  WAIT UNTIL ALT:PERIAPSIS > ( targetHeight - 500 ).
   set tValue to 0.
   PRINT "Orbit reached. Exiting".
 }
